@@ -1,13 +1,4 @@
-export type CliFetch = (
-  input: string | URL | Request,
-  init?: RequestInit
-) => Promise<Response>;
-
-export type CliUser = {
-  id: string;
-  email: string;
-  name?: string | null;
-};
+import type { CliFetch } from "./api.js";
 
 export type LoginOptions = {
   apiUrl?: string;
@@ -35,17 +26,6 @@ export type ReadAuthorizationStatusInput = {
   requestId: string;
   pollSecret: string;
   fetchImplementation?: CliFetch;
-};
-
-export type VerifyTokenInput = {
-  apiUrl: string;
-  token: string;
-  fetchImplementation?: CliFetch;
-};
-
-export type SaveCredentialsInput = {
-  apiUrl: string;
-  token: string;
 };
 
 export type LocalCliToken = {

@@ -139,12 +139,16 @@ test("saveCredentials writes a user-only credentials file", async () => {
     const credentialsPath = await testing.saveCredentials({
       apiUrl: "https://example.com",
       token: `eit_${"b".repeat(43)}`,
+      email: "dev@example.com",
+      deviceName: "Test device",
+      loggedInAt: "2026-08-12T00:00:00.000Z",
     });
     const credentials = JSON.parse(await readFile(credentialsPath, "utf8"));
     const fileStat = await stat(credentialsPath);
 
     assert.equal(credentials.apiUrl, "https://example.com");
     assert.equal(credentials.token, `eit_${"b".repeat(43)}`);
+    assert.equal(credentials.email, "dev@example.com");
     assert.equal(fileStat.mode & 0o777, 0o600);
   } finally {
     if (previousConfigDirectory === undefined) {

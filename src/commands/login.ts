@@ -1,18 +1,8 @@
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import {
-  chmod,
-  mkdir,
-  rename,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
-import { homedir, hostname, platform } from "node:os";
-import { join } from "node:path";
+import { hostname, platform } from "node:os";
 import {
   CLI_USER_AGENT,
-  CONFIG_APPLICATION_NAME,
-  CREDENTIALS_FILENAME,
   DEFAULT_API_URL,
   LOGIN_EXPIRY_GRACE_MS,
   LOGIN_TIMEOUT_MS,
@@ -20,33 +10,19 @@ import {
   REQUEST_TIMEOUT_MS,
   TOKEN_PATTERN,
 } from "../constants/index.js";
+import { isRecord, parseResponse, verifyToken } from "../lib/api.js";
+import {
+  getConfigDirectory,
+  saveCredentials,
+} from "../lib/credentials.js";
 import type {
   CliLoginRequest,
   CliLoginStatus,
-  CliUser,
   LocalCliToken,
   LoginOptions,
   ReadAuthorizationStatusInput,
   RequestAuthorizationInput,
-  SaveCredentialsInput,
-  VerifyTokenInput,
 } from "../types/login.js";
-
-function getConfigDirectory(): string {
-  if (process.env.EIT_CONFIG_DIR) {
-    return process.env.EIT_CONFIG_DIR;
-  }
-
-  if (platform() === "win32" && process.env.APPDATA) {
-    return join(process.env.APPDATA, CONFIG_APPLICATION_NAME);
-  }
-
-  if (process.env.XDG_CONFIG_HOME) {
-    return join(process.env.XDG_CONFIG_HOME, CONFIG_APPLICATION_NAME);
-  }
-
-  return join(homedir(), ".config", CONFIG_APPLICATION_NAME);
-}
 
 function normalizeApiUrl(rawApiUrl: string): string {
   const url = new URL(rawApiUrl);
@@ -76,24 +52,6 @@ function getTokenName(): string {
   const configuredName = process.env.EIT_TOKEN_NAME?.trim();
   const name = configuredName || `${hostname()} (${platform()})`;
   return name.slice(0, 80);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-async function parseResponse(response: Response): Promise<unknown> {
-  const payload: unknown = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const errorMessage =
-      isRecord(payload) && typeof payload.error === "string"
-        ? payload.error
-        : `Env Garden returned HTTP ${response.status}.`;
-    throw new Error(errorMessage);
-  }
-
-  return payload;
 }
 
 async function requestAuthorization({
@@ -202,83 +160,6 @@ async function readAuthorizationStatus({
   return payload.status;
 }
 
-async function verifyToken({
-  apiUrl,
-  token,
-  fetchImplementation = fetch,
-}: VerifyTokenInput): Promise<CliUser> {
-  let response;
-
-  try {
-    response = await fetchImplementation(`${apiUrl}/api/cli/v1/auth/verify`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-        "User-Agent": CLI_USER_AGENT,
-      },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === "TimeoutError") {
-      throw new Error(
-        `Env Garden did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds.`
-      );
-    }
-
-    throw new Error("Could not connect to Env Garden.");
-  }
-
-  const payload = await parseResponse(response);
-
-  if (
-    !isRecord(payload)
-    || !isRecord(payload.user)
-    || typeof payload.user.id !== "string"
-    || typeof payload.user.email !== "string"
-  ) {
-    throw new Error("Env Garden returned an invalid login response.");
-  }
-
-  return {
-    id: payload.user.id,
-    email: payload.user.email,
-    ...(typeof payload.user.name === "string" || payload.user.name === null
-      ? { name: payload.user.name }
-      : {}),
-  };
-}
-
-async function saveCredentials({
-  apiUrl,
-  token,
-}: SaveCredentialsInput): Promise<string> {
-  const configDirectory = getConfigDirectory();
-  const credentialsPath = join(configDirectory, CREDENTIALS_FILENAME);
-  const temporaryPath = join(
-    configDirectory,
-    `.credentials-${process.pid}-${Date.now()}.tmp`
-  );
-  const credentials = `${JSON.stringify({ apiUrl, token }, null, 2)}\n`;
-
-  await mkdir(configDirectory, { recursive: true, mode: 0o700 });
-
-  try {
-    await writeFile(temporaryPath, credentials, {
-      encoding: "utf8",
-      flag: "wx",
-      mode: 0o600,
-    });
-    await rename(temporaryPath, credentialsPath);
-    await chmod(credentialsPath, 0o600);
-  } catch (error) {
-    await unlink(temporaryPath).catch(() => undefined);
-    throw error;
-  }
-
-  return credentialsPath;
-}
-
 async function openBrowser(url: string): Promise<boolean> {
   const currentPlatform = platform();
   const command = currentPlatform === "darwin"
@@ -312,13 +193,14 @@ export async function login(options: LoginOptions = {}): Promise<void> {
   const apiUrl = normalizeApiUrl(
     options.apiUrl || process.env.EIT_API_URL || DEFAULT_API_URL
   );
+  const tokenName = getTokenName();
   const localToken = createLocalToken();
   const fetchImplementation = options.fetchImplementation || fetch;
   const loginRequest = await requestAuthorization({
     apiUrl,
     tokenHash: localToken.tokenHash,
     tokenPrefix: localToken.tokenPrefix,
-    tokenName: getTokenName(),
+    tokenName,
     fetchImplementation,
   });
   const openBrowserImplementation = options.openBrowserImplementation || openBrowser;
@@ -373,7 +255,13 @@ export async function login(options: LoginOptions = {}): Promise<void> {
         token: localToken.token,
         fetchImplementation,
       });
-      await saveCredentials({ apiUrl, token: localToken.token });
+      await saveCredentials({
+        apiUrl,
+        token: localToken.token,
+        email: user.email,
+        deviceName: tokenName,
+        loggedInAt: new Date().toISOString(),
+      });
       console.log(`Logged in as ${user.email}.`);
       return;
     }

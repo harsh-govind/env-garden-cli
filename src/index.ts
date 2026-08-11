@@ -2,12 +2,17 @@
 
 import { CLI_VERSION } from "./constants/index.js";
 import { login } from "./commands/login.js";
+import { logout } from "./commands/logout.js";
+import { status } from "./commands/status.js";
 
 function printHelp() {
   console.log(`eit - Env Garden CLI
 
 Usage:
   eit login [--api-url <url>] [--no-browser]
+  eit logout [--local]
+  eit status
+  eit --status
   eit --help
   eit --version
 
@@ -47,6 +52,15 @@ export async function run(args: string[]) {
 
     const [command] = args;
 
+    if (command === "status" || command === "--status") {
+      if (args.length > 1) {
+        throw new Error("Status does not accept additional arguments.");
+      }
+
+      await status();
+      return;
+    }
+
     if (command === "login") {
       const allowedArguments = new Set(["login", "--api-url", "--no-browser"]);
       const unknownArgument = args.find(
@@ -65,6 +79,20 @@ export async function run(args: string[]) {
         ...(apiUrl ? { apiUrl } : {}),
         openBrowser: !args.includes("--no-browser"),
       });
+      return;
+    }
+
+    if (command === "logout") {
+      const allowedArguments = new Set(["logout", "--local"]);
+      const unknownArgument = args.find(
+        (argument) => !allowedArguments.has(argument)
+      );
+
+      if (unknownArgument) {
+        throw new Error(`Unknown argument: ${unknownArgument}`);
+      }
+
+      await logout({ localOnly: args.includes("--local") });
       return;
     }
 

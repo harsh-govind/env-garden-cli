@@ -36,6 +36,23 @@ eit login --api-url http://localhost:3000
 The token is verified before it is stored. Credentials are written to the
 platform configuration directory with user-only file permissions.
 
+## Account status
+
+```bash
+eit --status
+# or
+eit status
+```
+
+## Logout
+
+```bash
+eit logout
+```
+
+Logout revokes the token on Env Garden before removing local credentials. To
+remove only the local credential while offline, use `eit logout --local`.
+
 ## Development
 
 ```bash
