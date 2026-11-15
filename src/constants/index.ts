@@ -1,4 +1,4 @@
-export const CLI_VERSION = "0.1.0";
+export const CLI_VERSION = "0.2.0";
 export const CLI_USER_AGENT = `@env-garden/cli/${CLI_VERSION}`;
 export const DEFAULT_API_URL = "https://env.garden";
 export const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
@@ -8,3 +8,5 @@ export const MAX_POLLING_INTERVAL_SECONDS = 10;
 export const CONFIG_APPLICATION_NAME = "env-garden";
 export const CREDENTIALS_FILENAME = "credentials.json";
 export const TOKEN_PATTERN = /^eit_[A-Za-z0-9_-]{43}$/;
+export const PROJECT_CONFIG_FILENAME = ".eit.json";
+export const DEFAULT_ENV_FILENAME = ".env";

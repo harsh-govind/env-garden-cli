@@ -10,7 +10,8 @@ import {
   REQUEST_TIMEOUT_MS,
   TOKEN_PATTERN,
 } from "../constants/index.js";
-import { isRecord, parseResponse, verifyToken } from "../lib/api.js";
+import { isRecord, parseResponse, verifySession, verifyToken } from "../lib/api.js";
+import { formatDateTime } from "../lib/format.js";
 import {
   getConfigDirectory,
   saveCredentials,
@@ -250,7 +251,7 @@ export async function login(options: LoginOptions = {}): Promise<void> {
         throw new Error("Failed to generate a valid CLI token.");
       }
 
-      const user = await verifyToken({
+      const { user, expiresAt } = await verifySession({
         apiUrl,
         token: localToken.token,
         fetchImplementation,
@@ -261,8 +262,12 @@ export async function login(options: LoginOptions = {}): Promise<void> {
         email: user.email,
         deviceName: tokenName,
         loggedInAt: new Date().toISOString(),
+        expiresAt,
       });
       console.log(`Logged in as ${user.email}.`);
+      if (expiresAt) {
+        console.log(`Session expires ${formatDateTime(expiresAt)}.`);
+      }
       return;
     }
 

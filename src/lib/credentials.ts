@@ -100,6 +100,9 @@ export async function readCredentials(): Promise<ReadCredentialsResult | null> {
       ...(typeof payload.loggedInAt === "string"
         ? { loggedInAt: payload.loggedInAt }
         : {}),
+      ...(typeof payload.expiresAt === "string"
+        ? { expiresAt: payload.expiresAt }
+        : {}),
     };
 
     return {

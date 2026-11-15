@@ -16,3 +16,43 @@ export type VerifyTokenInput = {
 };
 
 export type RevokeTokenInput = VerifyTokenInput;
+
+export type CliSessionInfo = {
+  user: CliUser;
+  expiresAt: string | null;
+};
+
+export type ApiRequestInput = {
+  apiUrl: string;
+  token: string;
+  path: string;
+  method?: "GET" | "PUT" | "DELETE";
+  body?: unknown;
+  fetchImplementation?: CliFetch;
+};
+
+export type RemoteEnvFile = {
+  id: string;
+  name: string;
+  environment: string;
+  variableCount: number;
+};
+
+export type RemoteProject = {
+  id: string;
+  name: string;
+  envFiles: RemoteEnvFile[];
+};
+
+export type RemoteWorkspace = {
+  id: string;
+  name: string;
+  projects: RemoteProject[];
+};
+
+export type RemoteVariable = {
+  key: string;
+  value: string;
+  note: string | null;
+  isCommented: boolean;
+};

@@ -1,20 +1,51 @@
 #!/usr/bin/env node
 
 import { CLI_VERSION } from "./constants/index.js";
+import { link, unlink } from "./commands/link.js";
+import { list } from "./commands/list.js";
 import { login } from "./commands/login.js";
 import { logout } from "./commands/logout.js";
+import { pull } from "./commands/pull.js";
+import { push } from "./commands/push.js";
+import { run as runCommand } from "./commands/run.js";
 import { status } from "./commands/status.js";
+import {
+  assertKnownFlags,
+  booleanFlag,
+  parseArgs,
+  stringFlag,
+} from "./lib/args.js";
+
+const VALUE_FLAGS = new Set([
+  "--api-url",
+  "--workspace",
+  "--project",
+  "--env",
+  "--output",
+  "-o",
+  "--file",
+  "-f",
+]);
 
 function printHelp() {
   console.log(`eit - Env Garden CLI
 
 Usage:
-  eit login [--api-url <url>] [--no-browser]
-  eit logout [--local]
-  eit status
-  eit --status
-  eit --help
-  eit --version
+  eit login [--api-url <url>] [--no-browser]   Sign in (session lasts 7 days)
+  eit logout [--local]                         Sign out and revoke this device
+  eit status                                   Show account, session and link
+
+  eit link [--workspace <name>] [--project <name>] [--env <name>]
+                                               Link this folder to an env file
+  eit unlink                                   Remove the link from this folder
+  eit list                                     List workspaces, projects, env files
+
+  eit pull [--env <name>] [-o <file>] [--force]
+                                               Download variables into .env
+  eit push [--env <name>] [-f <file>] [--yes]  Upload .env, replacing remote values
+  eit run [--env <name>] -- <command>          Run a command with variables injected
+
+  eit --help | --version
 
 Environment variables:
   EIT_API_URL        Env Garden API URL
@@ -22,81 +53,109 @@ Environment variables:
   EIT_CONFIG_DIR     Override the credentials directory`);
 }
 
-function readOption(args: string[], name: string) {
-  const index = args.indexOf(name);
-
-  if (index === -1) {
-    return undefined;
-  }
-
-  const value = args[index + 1];
-
-  if (!value || value.startsWith("-")) {
-    throw new Error(`${name} requires a value.`);
-  }
-
-  return value;
-}
-
 export async function run(args: string[]) {
   try {
-    if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+    if (args.length === 0 || args[0] === "--help" || args[0] === "-h" || args[0] === "help") {
       printHelp();
       return;
     }
 
-    if (args.includes("--version") || args.includes("-v")) {
+    if (args[0] === "--version" || args[0] === "-v") {
       console.log(CLI_VERSION);
       return;
     }
 
-    const [command] = args;
+    const parsed = parseArgs(args, VALUE_FLAGS);
+    const env = stringFlag(parsed, "--env");
 
-    if (command === "status" || command === "--status") {
-      if (args.length > 1) {
-        throw new Error("Status does not accept additional arguments.");
-      }
-
-      await status();
-      return;
+    if (parsed.passthrough.length > 0 && parsed.command !== "run") {
+      throw new Error("Only `eit run` accepts a command after --.");
     }
 
-    if (command === "login") {
-      const allowedArguments = new Set(["login", "--api-url", "--no-browser"]);
-      const unknownArgument = args.find(
-        (argument, index) =>
-          !allowedArguments.has(argument)
-          && args[index - 1] !== "--api-url"
-      );
+    switch (parsed.command) {
+      case "status":
+      case undefined: {
+        if (parsed.command === undefined && !parsed.flags.has("--status")) {
+          throw new Error("Missing command. Run eit --help.");
+        }
 
-      if (unknownArgument) {
-        throw new Error(`Unknown argument: ${unknownArgument}`);
+        assertKnownFlags(parsed, ["--status"]);
+        await status();
+        return;
       }
 
-      const apiUrl = readOption(args, "--api-url");
-
-      await login({
-        ...(apiUrl ? { apiUrl } : {}),
-        openBrowser: !args.includes("--no-browser"),
-      });
-      return;
-    }
-
-    if (command === "logout") {
-      const allowedArguments = new Set(["logout", "--local"]);
-      const unknownArgument = args.find(
-        (argument) => !allowedArguments.has(argument)
-      );
-
-      if (unknownArgument) {
-        throw new Error(`Unknown argument: ${unknownArgument}`);
+      case "login": {
+        assertKnownFlags(parsed, ["--api-url", "--no-browser"]);
+        const apiUrl = stringFlag(parsed, "--api-url");
+        await login({
+          ...(apiUrl ? { apiUrl } : {}),
+          openBrowser: !booleanFlag(parsed, "--no-browser"),
+        });
+        return;
       }
 
-      await logout({ localOnly: args.includes("--local") });
-      return;
-    }
+      case "logout":
+        assertKnownFlags(parsed, ["--local"]);
+        await logout({ localOnly: booleanFlag(parsed, "--local") });
+        return;
 
-    throw new Error(`Unknown command: ${command}`);
+      case "link": {
+        assertKnownFlags(parsed, ["--workspace", "--project", "--env"]);
+        const workspace = stringFlag(parsed, "--workspace");
+        const project = stringFlag(parsed, "--project");
+        await link({
+          ...(workspace ? { workspace } : {}),
+          ...(project ? { project } : {}),
+          ...(env ? { env } : {}),
+        });
+        return;
+      }
+
+      case "unlink":
+        assertKnownFlags(parsed, []);
+        await unlink();
+        return;
+
+      case "list":
+      case "ls":
+        assertKnownFlags(parsed, []);
+        await list();
+        return;
+
+      case "pull": {
+        assertKnownFlags(parsed, ["--env", "--output", "-o", "--force"]);
+        const output = stringFlag(parsed, "--output") ?? stringFlag(parsed, "-o");
+        await pull({
+          ...(env ? { env } : {}),
+          ...(output ? { output } : {}),
+          force: booleanFlag(parsed, "--force"),
+        });
+        return;
+      }
+
+      case "push": {
+        assertKnownFlags(parsed, ["--env", "--file", "-f", "--yes", "-y"]);
+        const file = stringFlag(parsed, "--file") ?? stringFlag(parsed, "-f");
+        await push({
+          ...(env ? { env } : {}),
+          ...(file ? { file } : {}),
+          yes: booleanFlag(parsed, "--yes", "-y"),
+        });
+        return;
+      }
+
+      case "run": {
+        assertKnownFlags(parsed, ["--env"]);
+        process.exitCode = await runCommand({
+          ...(env ? { env } : {}),
+          command: parsed.passthrough,
+        });
+        return;
+      }
+
+      default:
+        throw new Error(`Unknown command: ${parsed.command}. Run eit --help.`);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error.";
     console.error(`Error: ${message}`);

@@ -26,7 +26,18 @@ test("status reports stored credentials and logout revokes the token", async () 
       loggedInAt: "2026-08-12T00:00:00.000Z",
     });
 
-    await status();
+    await status({
+      fetchImplementation: async (url) => {
+        assert.equal(url, "https://example.com/api/cli/v1/auth/verify");
+        return new Response(
+          JSON.stringify({
+            user: { id: "user-1", email: "dev@example.com" },
+            token: { name: "Test device", expiresAt: "2026-08-19T00:00:00.000Z" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      },
+    });
     await logout({
       fetchImplementation: async (url, options) => {
         assert.equal(url, "https://example.com/api/cli/v1/auth/token");
