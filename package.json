@@ -24,7 +24,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/index.js",
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsx --test src/tests/**/*.test.ts",
     "prepack": "pnpm run build"
