@@ -2,9 +2,23 @@
   "name": "@env-garden/cli",
   "version": "0.2.0",
   "description": "Command-line interface for Env Garden",
+  "homepage": "https://env.garden/docs/cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harsh-govind/env-garden-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/harsh-govind/env-garden-cli/issues"
+  },
+  "keywords": [
+    "env",
+    "environment-variables",
+    "secrets",
+    "cli"
+  ],
   "type": "module",
   "bin": {
-    "eit": "./dist/index.js"
+    "eit": "dist/index.js"
   },
   "files": [
     "dist"
@@ -18,12 +32,6 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": [
-    "env",
-    "environment-variables",
-    "secrets",
-    "cli"
-  ],
   "license": "MIT",
   "packageManager": "pnpm@11.9.0",
   "publishConfig": {
