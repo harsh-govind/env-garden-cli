@@ -35,6 +35,31 @@ eit run -- npm run dev   # or inject them without writing a file
 
 `--env` accepts an env file name (`.env.production`), its environment (`production`) or its id, and overrides the linked env file for that one command.
 
+## Manage workspaces, projects and members
+
+Everything you can do in the web app (except account settings) works from the terminal, with the same permissions.
+
+```bash
+eit workspace list
+eit workspace create "Acme"
+eit project create api --workspace Acme --environments production,development
+eit env create .env.staging --environment staging --project api
+eit member invite dev@acme.dev --role member --projects api --project-role contributor
+eit member list
+eit history --limit 20
+```
+
+| Command | Actions |
+| --- | --- |
+| `eit workspace` | `list`, `show [<ws>]`, `create <name>`, `rename <ws> <name>`, `delete <ws>` |
+| `eit project` | `list`, `show [<project>]`, `create <name> [--environments a,b]`, `rename <project> <name>`, `delete <project>` |
+| `eit env` | `list`, `create <name> --environment <type>`, `rename <file> <name>`, `delete <file>` |
+| `eit member` | `list`, `invite <email>`, `update <email> --role <role>`, `remove <email>` |
+| `eit invite` | `revoke <email>` |
+| `eit history` | `[--search <text>] [--limit <n>]` |
+
+`--workspace` and `--project` take a name or id and default to the folder link (or your only workspace). Deletes and removals ask for confirmation; pass `--yes` in scripts.
+
 ## Comments and commented-out variables
 
 Comments survive a round trip:

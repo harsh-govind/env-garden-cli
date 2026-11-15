@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { CLI_VALUE_FLAGS, CLI_VERSION } from "./constants/index.js";
+import { CLI_VALUE_FLAGS, CLI_VERSION, MANAGE_COMMANDS, MANAGE_FLAGS } from "./constants/index.js";
 import { link, unlink } from "./commands/link.js";
 import { list } from "./commands/list.js";
 import { login } from "./commands/login.js";
@@ -9,6 +9,11 @@ import { pull } from "./commands/pull.js";
 import { push } from "./commands/push.js";
 import { run as runCommand } from "./commands/run.js";
 import { status } from "./commands/status.js";
+import { envFileCommand } from "./commands/env-file.js";
+import { historyCommand } from "./commands/history.js";
+import { inviteCommand, memberCommand } from "./commands/member.js";
+import { projectCommand } from "./commands/project.js";
+import { workspaceCommand } from "./commands/workspace.js";
 import {
   assertKnownFlags,
   booleanFlag,
@@ -19,22 +24,41 @@ import {
 function printHelp() {
   console.log(`eit - Env Garden CLI
 
-Usage:
+Account:
   eit login [--api-url <url>] [--no-browser]   Sign in (session lasts 7 days)
   eit logout [--local]                         Sign out and revoke this device
   eit status                                   Show account, session and link
 
-  eit link [--workspace <name>] [--project <name>] [--env <name>]
-                                               Link this folder to an env file
-  eit unlink                                   Remove the link from this folder
-  eit list                                     List workspaces, projects, env files
-
+Env files in this folder:
+  eit link [--workspace] [--project] [--env]   Link this folder to an env file
+  eit unlink                                   Remove the link
   eit pull [--env <name>] [-o <file>] [--force]
-                                               Download variables into .env
-  eit push [--env <name>] [-f <file>] [--yes]  Upload .env, replacing remote values
-  eit run [--env <name>] -- <command>          Run a command with variables injected
+  eit push [--env <name>] [-f <file>] [--yes]
+  eit run [--env <name>] -- <command>
+  eit list                                     Workspaces, projects and env files
 
-  eit --help | --version
+Workspaces:
+  eit workspace list | show [<ws>] | create <name> | rename <ws> <name> | delete <ws>
+
+Projects (--workspace <name>):
+  eit project list | show [<project>] | create <name> [--environments production,development]
+  eit project rename <project> <name> | delete <project>
+
+Env files (--workspace, --project):
+  eit env list | create <name> --environment <type> | rename <file> <name> | delete <file>
+
+Members (--workspace <name>):
+  eit member list
+  eit member invite <email> [--role member|admin] [--projects a,b] [--project-role viewer|contributor]
+  eit member update <email> --role member|admin [--projects a,b] [--project-role ...]
+  eit member remove <email>
+  eit invite revoke <email>
+
+History (--workspace <name>):
+  eit history [--search <text>] [--limit <n>]
+
+--workspace and --project accept a name or id and default to the folder link.
+Deletes and removals ask first; pass --yes to skip.
 
 Environment variables:
   EIT_API_URL        Env Garden API URL
@@ -59,6 +83,16 @@ export async function run(args: string[]) {
 
     if (parsed.passthrough.length > 0 && parsed.command !== "run") {
       throw new Error("Only `eit run` accepts a command after --.");
+    }
+
+    const manage = { parsed };
+    const manageFlags = [...MANAGE_FLAGS];
+
+    if (
+      parsed.positionals.length > 0
+      && !(MANAGE_COMMANDS as readonly string[]).includes(parsed.command ?? "")
+    ) {
+      throw new Error(`Unexpected argument: ${parsed.positionals[0]}`);
     }
 
     switch (parsed.command) {
@@ -141,6 +175,40 @@ export async function run(args: string[]) {
         });
         return;
       }
+
+      case "workspace":
+      case "workspaces":
+        assertKnownFlags(parsed, manageFlags);
+        await workspaceCommand(manage);
+        return;
+
+      case "project":
+      case "projects":
+        assertKnownFlags(parsed, [...manageFlags, "--environments"]);
+        await projectCommand(manage);
+        return;
+
+      case "env":
+      case "envs":
+        assertKnownFlags(parsed, [...manageFlags, "--environment"]);
+        await envFileCommand(manage);
+        return;
+
+      case "member":
+      case "members":
+        assertKnownFlags(parsed, [...manageFlags, "--role", "--projects", "--project-role"]);
+        await memberCommand(manage);
+        return;
+
+      case "invite":
+        assertKnownFlags(parsed, manageFlags);
+        await inviteCommand(manage);
+        return;
+
+      case "history":
+        assertKnownFlags(parsed, ["--workspace", "--search", "--limit"]);
+        await historyCommand(manage);
+        return;
 
       default:
         throw new Error(`Unknown command: ${parsed.command}. Run eit --help.`);

@@ -1,6 +1,6 @@
 {
   "name": "@env-garden/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Command-line interface for Env Garden",
   "homepage": "https://env.garden/docs/cli",
   "repository": {

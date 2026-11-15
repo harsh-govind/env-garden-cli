@@ -1,7 +1,7 @@
 import type { ParsedArgs } from "../types/args.js";
 
 /**
- * Parses `eit <command> [--flag value] [--switch] [-- cmd args]`.
+ * Parses `eit <command> [words...] [--flag value] [--switch] [-- cmd args]`.
  * `valueFlags` lists flags that take a value; anything else is a boolean switch.
  */
 export function parseArgs(args: string[], valueFlags: Set<string>): ParsedArgs {
@@ -10,16 +10,18 @@ export function parseArgs(args: string[], valueFlags: Set<string>): ParsedArgs {
   const ownArgs = separatorIndex === -1 ? args : args.slice(0, separatorIndex);
   const passthrough = separatorIndex === -1 ? [] : args.slice(separatorIndex + 1);
   let command: string | undefined;
+  const positionals: string[] = [];
 
   for (let index = 0; index < ownArgs.length; index += 1) {
     const argument = ownArgs[index] as string;
 
     if (!argument.startsWith("-")) {
-      if (command !== undefined) {
-        throw new Error(`Unexpected argument: ${argument}`);
+      if (command === undefined) {
+        command = argument;
+      } else {
+        positionals.push(argument);
       }
 
-      command = argument;
       continue;
     }
 
@@ -43,7 +45,7 @@ export function parseArgs(args: string[], valueFlags: Set<string>): ParsedArgs {
     }
   }
 
-  return { command, flags, passthrough };
+  return { command, flags, positionals, passthrough };
 }
 
 export function assertKnownFlags(parsed: ParsedArgs, allowed: string[]) {

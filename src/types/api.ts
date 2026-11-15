@@ -26,7 +26,7 @@ export type ApiRequestInput = {
   apiUrl: string;
   token: string;
   path: string;
-  method?: "GET" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   fetchImplementation?: CliFetch;
 };
