@@ -2,9 +2,9 @@ import { pluralize } from "../lib/format.js";
 import { findProjectLink } from "../lib/project-config.js";
 import { fetchWorkspaces } from "../lib/remote.js";
 import { requireCredentials } from "../lib/session.js";
-import type { CliFetch } from "../types/api.js";
+import type { ListOptions } from "../types/commands.js";
 
-export async function list(options: { fetchImplementation?: CliFetch } = {}): Promise<void> {
+export async function list(options: ListOptions = {}): Promise<void> {
   const credentials = await requireCredentials();
   const [workspaces, found] = await Promise.all([
     fetchWorkspaces(

@@ -10,3 +10,22 @@ export const CREDENTIALS_FILENAME = "credentials.json";
 export const TOKEN_PATTERN = /^eit_[A-Za-z0-9_-]{43}$/;
 export const PROJECT_CONFIG_FILENAME = ".eit.json";
 export const DEFAULT_ENV_FILENAME = ".env";
+export const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const PROJECT_LINK_FIELDS = [
+  "workspaceId",
+  "workspaceName",
+  "projectId",
+  "projectName",
+  "envFileId",
+  "envFileName",
+] as const;
+export const CLI_VALUE_FLAGS = new Set([
+  "--api-url",
+  "--workspace",
+  "--project",
+  "--env",
+  "--output",
+  "-o",
+  "--file",
+  "-f",
+]);

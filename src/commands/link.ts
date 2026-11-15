@@ -2,16 +2,11 @@ import { matchByIdOrName, fetchWorkspaces } from "../lib/remote.js";
 import { select } from "../lib/prompt.js";
 import { deleteProjectLink, writeProjectLink } from "../lib/project-config.js";
 import { requireCredentials } from "../lib/session.js";
-import type { CliFetch, RemoteEnvFile, RemoteProject, RemoteWorkspace } from "../types/api.js";
+import type { RemoteEnvFile, RemoteProject, RemoteWorkspace } from "../types/api.js";
+import type { LinkOptions } from "../types/commands.js";
+import type { NamedEntity } from "../types/project.js";
 
-export type LinkOptions = {
-  workspace?: string;
-  project?: string;
-  env?: string;
-  fetchImplementation?: CliFetch;
-};
-
-async function pick<T extends { id: string; name: string }>(
+async function pick<T extends NamedEntity>(
   label: string,
   items: T[],
   query: string | undefined,

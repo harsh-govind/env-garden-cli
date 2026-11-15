@@ -1,9 +1,4 @@
-export type ParsedArgs = {
-  command: string | undefined;
-  flags: Map<string, string | true>;
-  /** Everything after a standalone `--` (used by `eit run`). */
-  passthrough: string[];
-};
+import type { ParsedArgs } from "../types/args.js";
 
 /**
  * Parses `eit <command> [--flag value] [--switch] [-- cmd args]`.

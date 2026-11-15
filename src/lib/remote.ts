@@ -1,16 +1,16 @@
 import { apiRequest } from "./api.js";
 import type {
-  CliFetch,
+  PushVariablesResponse,
   RemoteEnvFile,
+  RemoteOptions,
   RemoteVariable,
   RemoteWorkspace,
+  VariablesResponse,
+  WorkspacesResponse,
 } from "../types/api.js";
 import type { StoredCliCredentials } from "../types/credentials.js";
-import type { ProjectLink } from "../types/project.js";
-
-type RemoteOptions = {
-  fetchImplementation?: CliFetch;
-};
+import type { PushPayload } from "../types/commands.js";
+import type { NamedEntity, ProjectLink } from "../types/project.js";
 
 function withFetch(options: RemoteOptions) {
   return options.fetchImplementation
@@ -34,7 +34,7 @@ export async function fetchWorkspaces(
   credentials: StoredCliCredentials,
   options: RemoteOptions = {}
 ): Promise<RemoteWorkspace[]> {
-  const payload = await apiRequest<{ workspaces?: RemoteWorkspace[] }>({
+  const payload = await apiRequest<WorkspacesResponse>({
     apiUrl: credentials.apiUrl,
     token: credentials.token,
     path: "/api/cli/v1/projects",
@@ -53,7 +53,7 @@ export async function fetchVariables(
   link: Pick<ProjectLink, "workspaceId" | "projectId" | "envFileId">,
   options: RemoteOptions = {}
 ): Promise<RemoteVariable[]> {
-  const payload = await apiRequest<{ variables?: RemoteVariable[] }>({
+  const payload = await apiRequest<VariablesResponse>({
     apiUrl: credentials.apiUrl,
     token: credentials.token,
     path: variablesPath(link),
@@ -73,12 +73,13 @@ export async function pushVariables(
   variables: RemoteVariable[],
   options: RemoteOptions = {}
 ): Promise<number> {
-  const payload = await apiRequest<{ count?: number }>({
+  const body: PushPayload = { variables };
+  const payload = await apiRequest<PushVariablesResponse>({
     apiUrl: credentials.apiUrl,
     token: credentials.token,
     path: variablesPath(link),
     method: "PUT",
-    body: { variables },
+    body,
     ...withFetch(options),
   });
 
@@ -86,7 +87,7 @@ export async function pushVariables(
 }
 
 /** Case-insensitive match on id or name (or environment for env files). */
-export function matchByIdOrName<T extends { id: string; name: string }>(
+export function matchByIdOrName<T extends NamedEntity>(
   items: T[],
   query: string,
   extraField?: (item: T) => string

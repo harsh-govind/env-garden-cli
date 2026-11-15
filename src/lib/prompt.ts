@@ -1,4 +1,5 @@
 import { createInterface } from "node:readline/promises";
+import type { SelectChoice } from "../types/prompt.js";
 
 export function isInteractive(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -22,14 +23,14 @@ export async function confirm(question: string): Promise<boolean> {
 /** Numbered picker. Auto-selects when there is only one choice. */
 export async function select<T>(
   label: string,
-  choices: { title: string; value: T }[]
+  choices: SelectChoice<T>[]
 ): Promise<T> {
   if (choices.length === 0) {
     throw new Error(`No ${label.toLowerCase()} available.`);
   }
 
   if (choices.length === 1) {
-    const [only] = choices as [{ title: string; value: T }];
+    const [only] = choices as [SelectChoice<T>];
     console.log(`${label}: ${only.title}`);
     return only.value;
   }

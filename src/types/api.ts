@@ -56,3 +56,19 @@ export type RemoteVariable = {
   note: string | null;
   isCommented: boolean;
 };
+
+export type RemoteOptions = {
+  fetchImplementation?: CliFetch;
+};
+
+export type WorkspacesResponse = {
+  workspaces?: RemoteWorkspace[];
+};
+
+export type VariablesResponse = {
+  variables?: RemoteVariable[];
+};
+
+export type PushVariablesResponse = {
+  count?: number;
+};

@@ -6,20 +6,8 @@ import { confirm, isInteractive } from "../lib/prompt.js";
 import { requireProjectLink } from "../lib/project-config.js";
 import { fetchVariables, pushVariables, resolveTargetEnvFile } from "../lib/remote.js";
 import { requireCredentials } from "../lib/session.js";
-import type { CliFetch, RemoteVariable } from "../types/api.js";
-
-export type PushOptions = {
-  env?: string;
-  file?: string;
-  yes?: boolean;
-  fetchImplementation?: CliFetch;
-};
-
-type VariableDiff = {
-  added: string[];
-  removed: string[];
-  changed: string[];
-};
+import type { RemoteVariable } from "../types/api.js";
+import type { PushOptions, VariableDiff } from "../types/commands.js";
 
 export function diffVariables(local: RemoteVariable[], remote: RemoteVariable[]): VariableDiff {
   const remoteByKey = new Map(remote.map((variable) => [variable.key, variable]));

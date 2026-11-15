@@ -2,11 +2,7 @@ import { verifySession } from "../lib/api.js";
 import { readCredentials } from "../lib/credentials.js";
 import { formatDateTime } from "../lib/format.js";
 import { findProjectLink } from "../lib/project-config.js";
-import type { CliFetch } from "../types/api.js";
-
-export type StatusOptions = {
-  fetchImplementation?: CliFetch;
-};
+import type { StatusOptions } from "../types/commands.js";
 
 export async function status(options: StatusOptions = {}): Promise<void> {
   const storedCredentials = await readCredentials();

@@ -1,7 +1,7 @@
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { PROJECT_CONFIG_FILENAME } from "../constants/index.js";
-import type { ProjectLink } from "../types/project.js";
+import { PROJECT_CONFIG_FILENAME, PROJECT_LINK_FIELDS } from "../constants/index.js";
+import type { FoundProjectLink, ProjectLink } from "../types/project.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -10,15 +10,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isProjectLink(value: unknown): value is ProjectLink {
   return (
     isRecord(value)
-    && ["workspaceId", "workspaceName", "projectId", "projectName", "envFileId", "envFileName"]
-      .every((field) => typeof value[field] === "string")
+    && PROJECT_LINK_FIELDS.every((field) => typeof value[field] === "string")
   );
 }
 
 /** Finds the nearest `.eit.json`, walking up from `startDirectory`. */
 export async function findProjectLink(
   startDirectory = process.cwd()
-): Promise<{ link: ProjectLink; path: string } | null> {
+): Promise<FoundProjectLink | null> {
   let directory = startDirectory;
 
   for (;;) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { CLI_VERSION } from "./constants/index.js";
+import { CLI_VALUE_FLAGS, CLI_VERSION } from "./constants/index.js";
 import { link, unlink } from "./commands/link.js";
 import { list } from "./commands/list.js";
 import { login } from "./commands/login.js";
@@ -15,17 +15,6 @@ import {
   parseArgs,
   stringFlag,
 } from "./lib/args.js";
-
-const VALUE_FLAGS = new Set([
-  "--api-url",
-  "--workspace",
-  "--project",
-  "--env",
-  "--output",
-  "-o",
-  "--file",
-  "-f",
-]);
 
 function printHelp() {
   console.log(`eit - Env Garden CLI
@@ -65,7 +54,7 @@ export async function run(args: string[]) {
       return;
     }
 
-    const parsed = parseArgs(args, VALUE_FLAGS);
+    const parsed = parseArgs(args, CLI_VALUE_FLAGS);
     const env = stringFlag(parsed, "--env");
 
     if (parsed.passthrough.length > 0 && parsed.command !== "run") {

@@ -2,13 +2,7 @@ import { spawn } from "node:child_process";
 import { requireProjectLink } from "../lib/project-config.js";
 import { fetchVariables, resolveTargetEnvFile } from "../lib/remote.js";
 import { requireCredentials } from "../lib/session.js";
-import type { CliFetch } from "../types/api.js";
-
-export type RunOptions = {
-  env?: string;
-  command: string[];
-  fetchImplementation?: CliFetch;
-};
+import type { RunOptions } from "../types/commands.js";
 
 /** Runs a command with the linked env file's variables injected. Nothing is written to disk. */
 export async function run(options: RunOptions): Promise<number> {

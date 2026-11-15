@@ -8,14 +8,7 @@ import { confirm, isInteractive } from "../lib/prompt.js";
 import { requireProjectLink } from "../lib/project-config.js";
 import { fetchVariables, resolveTargetEnvFile } from "../lib/remote.js";
 import { requireCredentials } from "../lib/session.js";
-import type { CliFetch } from "../types/api.js";
-
-export type PullOptions = {
-  env?: string;
-  output?: string;
-  force?: boolean;
-  fetchImplementation?: CliFetch;
-};
+import type { PullOptions } from "../types/commands.js";
 
 async function readExisting(path: string): Promise<string | null> {
   try {

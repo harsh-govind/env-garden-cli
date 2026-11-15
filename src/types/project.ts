@@ -6,3 +6,13 @@ export type ProjectLink = {
   envFileId: string;
   envFileName: string;
 };
+
+export type FoundProjectLink = {
+  link: ProjectLink;
+  path: string;
+};
+
+export type NamedEntity = {
+  id: string;
+  name: string;
+};
