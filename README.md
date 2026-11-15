@@ -76,7 +76,8 @@ PORT=3000 # web port        ← inline comments are kept too
 ## Sessions and security
 
 - A login lasts **7 days**. After that, run `eit login` again.
-- See and revoke CLI sessions anytime from your **Profile** page on Env Garden. A revoked device is rejected immediately.
+- See and revoke CLI sessions anytime in **Settings → Sessions** on Env Garden. A revoked device is rejected immediately.
+- The CLI has the same workspace, project and environment access as your account. Approving `eit login` requires a fully signed-in browser session (including 2FA if enabled). Account settings stay in the web app.
 - The token is generated locally; only its SHA-256 hash is sent to the server.
 - Credentials are stored in your config directory (`~/.config/env-garden`) with user-only permissions.
 - `.eit.json` (the folder link) contains only ids and names, no secrets, so it's safe to commit.
@@ -87,7 +88,7 @@ PORT=3000 # web port        ← inline comments are kept too
 | Variable | Purpose |
 | --- | --- |
 | `EIT_API_URL` | Env Garden URL (for self-hosted instances) |
-| `EIT_TOKEN_NAME` | Device name shown on the approval screen and in your profile |
+| `EIT_TOKEN_NAME` | Device name shown on the approval screen and in Settings → Sessions |
 | `EIT_CONFIG_DIR` | Override where credentials are stored |
 
 ## Development
