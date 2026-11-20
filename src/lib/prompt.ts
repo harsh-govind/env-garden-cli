@@ -20,7 +20,6 @@ export async function confirm(question: string): Promise<boolean> {
   return answer === "y" || answer === "yes";
 }
 
-/** Numbered picker. Auto-selects when there is only one choice. */
 export async function select<T>(
   label: string,
   choices: SelectChoice<T>[]

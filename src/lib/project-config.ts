@@ -14,7 +14,6 @@ function isProjectLink(value: unknown): value is ProjectLink {
   );
 }
 
-/** Finds the nearest `.eit.json`, walking up from `startDirectory`. */
 export async function findProjectLink(
   startDirectory = process.cwd()
 ): Promise<FoundProjectLink | null> {

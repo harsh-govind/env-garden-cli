@@ -27,7 +27,6 @@ function toConnectionError(error: unknown): Error {
   return new Error("Could not connect to Env Garden.");
 }
 
-/** Authenticated JSON request to the Env Garden CLI API. */
 export async function apiRequest<T = unknown>({
   apiUrl,
   token,

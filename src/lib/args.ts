@@ -1,9 +1,5 @@
 import type { ParsedArgs } from "../types/args.js";
 
-/**
- * Parses `eit <command> [words...] [--flag value] [--switch] [-- cmd args]`.
- * `valueFlags` lists flags that take a value; anything else is a boolean switch.
- */
 export function parseArgs(args: string[], valueFlags: Set<string>): ParsedArgs {
   const flags = new Map<string, string | true>();
   const separatorIndex = args.indexOf("--");

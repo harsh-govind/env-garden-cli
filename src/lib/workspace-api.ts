@@ -17,7 +17,6 @@ import type {
   WorkspacesResponse,
 } from "../types/manage.js";
 
-/** Thin typed client over the same /api/workspaces routes the web app uses. */
 export function createWorkspaceApi(credentials: StoredCliCredentials, fetchImplementation?: CliFetch) {
   const request = <T>(path: string, method: "GET" | "POST" | "PATCH" | "DELETE" = "GET", body?: unknown) =>
     apiRequest<T>({

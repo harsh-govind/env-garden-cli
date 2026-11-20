@@ -12,7 +12,6 @@ function names(items: NamedEntity[]) {
   return items.map((item) => item.name).join(", ") || "none";
 }
 
-/** Workspace from `--workspace`, else the folder link, else the only workspace. */
 export async function resolveWorkspace(api: WorkspaceApi, query: string | undefined): Promise<WorkspaceDetail> {
   const workspaces = await api.listWorkspaces();
   let workspaceId: string | undefined;
@@ -38,7 +37,6 @@ export async function resolveWorkspace(api: WorkspaceApi, query: string | undefi
   return api.getWorkspace(workspaceId as string);
 }
 
-/** Project from a name/id, else the folder link (within the workspace). */
 export async function resolveProject(
   api: WorkspaceApi,
   workspace: WorkspaceDetail,

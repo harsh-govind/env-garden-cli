@@ -19,7 +19,6 @@ export function requirePositional(input: ManageCommandInput, index: number, usag
   return value;
 }
 
-/** Asks before destructive actions; `--yes` skips, non-interactive requires it. */
 export async function confirmDestructive(input: ManageCommandInput, question: string): Promise<boolean> {
   if (booleanFlag(input.parsed, "--yes", "-y")) {
     return true;

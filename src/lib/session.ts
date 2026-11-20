@@ -29,7 +29,6 @@ export function readEnvironmentToken(): StoredCliCredentials | null {
   };
 }
 
-/** Returns stored credentials, or throws a helpful error when logged out/expired. */
 export async function requireCredentials(): Promise<StoredCliCredentials> {
   const environmentToken = readEnvironmentToken();
 

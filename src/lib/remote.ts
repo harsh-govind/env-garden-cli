@@ -136,7 +136,6 @@ export async function pushVariables(
   return typeof payload.count === "number" ? payload.count : variables.length;
 }
 
-/** Case-insensitive match on id or name (or environment for env files). */
 export function matchByIdOrName<T extends NamedEntity>(
   items: T[],
   query: string,
@@ -153,10 +152,6 @@ export function matchByIdOrName<T extends NamedEntity>(
   );
 }
 
-/**
- * Picks the env file for a command: the linked one, or `--env <name>` within
- * the linked project.
- */
 export async function resolveTargetEnvFile(
   credentials: StoredCliCredentials,
   link: ProjectLink,

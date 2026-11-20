@@ -17,7 +17,6 @@ export function pluralize(count: number, singular: string, plural = `${singular}
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-/** Prints rows as left-aligned columns; the first row is the header. */
 export function printTable(rows: TableRow[]) {
   const widths = rows[0]?.map((_, column) => Math.max(...rows.map((row) => (row[column] ?? "").length))) ?? [];
 

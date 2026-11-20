@@ -4,7 +4,6 @@ import { fetchVariables, resolveTargetEnvFile } from "../lib/remote.js";
 import { requireCredentials } from "../lib/session.js";
 import type { RunOptions } from "../types/commands.js";
 
-/** Runs a command with the linked env file's variables injected. Nothing is written to disk. */
 export async function run(options: RunOptions): Promise<number> {
   const [executable, ...args] = options.command;
 

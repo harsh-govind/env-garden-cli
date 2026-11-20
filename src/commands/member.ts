@@ -26,7 +26,6 @@ function parseRole<T extends string>(value: string | undefined, allowed: readonl
   return upper;
 }
 
-/** Builds the access payload the web app sends from CLI flags. */
 export function buildMemberAccess(input: ManageCommandInput, workspace: WorkspaceDetail): MemberAccessPayload {
   const role = parseRole<WorkspaceRole>(
     stringFlag(input.parsed, "--role"),

@@ -22,7 +22,6 @@ async function readExisting(path: string): Promise<string | null> {
   }
 }
 
-/** Returns false only when git positively reports the file is not ignored. */
 function isGitIgnored(path: string): boolean {
   const result = spawnSync("git", ["check-ignore", "-q", path], { stdio: "ignore" });
   return result.status !== 1;
