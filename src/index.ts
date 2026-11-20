@@ -64,6 +64,7 @@ History (--workspace <name>):
 Deletes and removals ask first; pass --yes to skip.
 
 Environment variables:
+  EIT_TOKEN          Service account token for CI (overrides eit login)
   EIT_API_URL        Env Garden API URL
   EIT_TOKEN_NAME     Name shown on the authorization screen
   EIT_CONFIG_DIR     Override the credentials directory`);

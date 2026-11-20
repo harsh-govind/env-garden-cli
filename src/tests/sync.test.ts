@@ -189,3 +189,34 @@ test("a revoked token surfaces a re-login message", async () => {
     );
   });
 });
+
+test("EIT_TOKEN works without a credentials file", async () => {
+  await withTempWorkspace(async (directory) => {
+    const server = await createFakeServer([
+      { key: "DEPLOY_KEY", value: "k1", note: null, isCommented: false },
+    ]);
+    const previousToken = process.env.EIT_TOKEN;
+    const previousApiUrl = process.env.EIT_API_URL;
+
+    try {
+      process.env.EIT_TOKEN = [
+        token,
+        Buffer.from(account.clientShare).toString("base64url"),
+        Buffer.from(account.wrapKey).toString("base64url"),
+      ].join(".");
+      process.env.EIT_API_URL = "https://example.com";
+
+      await link({ workspace: "Acme", project: "api", env: "production", fetchImplementation: server.fetchImplementation });
+      await pull({ fetchImplementation: server.fetchImplementation });
+      assert.equal(await readFile(join(directory, ".env"), "utf8"), "DEPLOY_KEY=k1\n");
+
+      process.env.EIT_TOKEN = `${token}.bad`;
+      await assert.rejects(pull({ force: true, fetchImplementation: server.fetchImplementation }), /not a valid service account token/);
+    } finally {
+      if (previousToken === undefined) delete process.env.EIT_TOKEN;
+      else process.env.EIT_TOKEN = previousToken;
+      if (previousApiUrl === undefined) delete process.env.EIT_API_URL;
+      else process.env.EIT_API_URL = previousApiUrl;
+    }
+  });
+});

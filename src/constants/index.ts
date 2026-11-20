@@ -8,6 +8,7 @@ export const MAX_POLLING_INTERVAL_SECONDS = 10;
 export const CONFIG_APPLICATION_NAME = "env-garden";
 export const CREDENTIALS_FILENAME = "credentials.json";
 export const TOKEN_PATTERN = /^eit_[A-Za-z0-9_-]{43}$/;
+export const ENVIRONMENT_TOKEN_PATTERN = /^(eit_[A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})$/;
 export const PROJECT_CONFIG_FILENAME = ".eit.json";
 export const DEFAULT_ENV_FILENAME = ".env";
 export const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
