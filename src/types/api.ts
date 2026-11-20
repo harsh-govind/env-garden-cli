@@ -1,3 +1,6 @@
+import type { EnvironmentKeyMaterial, PlainVariable } from "./crypto.js";
+import type { RemoteCipherVariable } from "./keys.js";
+
 export type CliFetch = (
   input: string | URL | Request,
   init?: RequestInit
@@ -50,11 +53,13 @@ export type RemoteWorkspace = {
   projects: RemoteProject[];
 };
 
-export type RemoteVariable = {
-  key: string;
-  value: string;
-  note: string | null;
-  isCommented: boolean;
+export type RemoteVariable = PlainVariable;
+
+export type RemoteState = {
+  variables: RemoteVariable[];
+  entries: { plain: RemoteVariable; cipher: RemoteCipherVariable }[];
+  keyVersion: number;
+  material: EnvironmentKeyMaterial;
 };
 
 export type RemoteOptions = {
@@ -63,10 +68,6 @@ export type RemoteOptions = {
 
 export type WorkspacesResponse = {
   workspaces?: RemoteWorkspace[];
-};
-
-export type VariablesResponse = {
-  variables?: RemoteVariable[];
 };
 
 export type PushVariablesResponse = {

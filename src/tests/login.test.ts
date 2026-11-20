@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { login, testing } from "../commands/login.js";
 import type { CreateCliLoginRequestPayload } from "../types/login.js";
+import { createFakeAccount } from "./fake-account.js";
 
 test("normalizeApiUrl accepts HTTPS and strips trailing slashes", () => {
   assert.equal(
@@ -47,6 +48,7 @@ test("login opens an authorization URL and stores the locally generated token", 
   const previousConfigDirectory = process.env.EIT_CONFIG_DIR;
   let createRequestBody: CreateCliLoginRequestPayload | undefined;
   let openedUrl: string | undefined;
+  let account: Awaited<ReturnType<typeof createFakeAccount>> | undefined;
 
   try {
     process.env.EIT_CONFIG_DIR = directory;
@@ -80,10 +82,21 @@ test("login opens an authorization URL and stores the locally generated token", 
         }
 
         if (url === "https://example.com/api/cli/v1/auth/requests/request-1") {
-          return new Response(JSON.stringify({ status: "APPROVED" }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          if (!createRequestBody) {
+            throw new Error("Missing login request.");
+          }
+
+          account = await createFakeAccount(`eit_${"x".repeat(43)}`);
+          return new Response(
+            JSON.stringify({
+              status: "APPROVED",
+              sealedPackage: account.sealedPackageFor(createRequestBody.transportPublicKey),
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
         }
 
         if (url === "https://example.com/api/cli/v1/auth/verify") {
@@ -119,6 +132,9 @@ test("login opens an authorization URL and stores the locally generated token", 
 
     assert.equal(openedUrl, "https://example.com/cli/authorize/request-1");
     assert.match(credentials.token, /^eit_[A-Za-z0-9_-]{43}$/);
+    assert.match(createRequestBody?.transportPublicKey ?? "", /^[A-Za-z0-9+/]{43}=$/);
+    assert.equal(credentials.clientShare, account?.credentialShares.clientShare);
+    assert.equal(credentials.wrapKey, account?.credentialShares.wrapKey);
   } finally {
     if (previousConfigDirectory === undefined) {
       delete process.env.EIT_CONFIG_DIR;
@@ -139,6 +155,8 @@ test("saveCredentials writes a user-only credentials file", async () => {
     const credentialsPath = await testing.saveCredentials({
       apiUrl: "https://example.com",
       token: `eit_${"b".repeat(43)}`,
+      clientShare: "Y2xpZW50",
+      wrapKey: "d3JhcA==",
       email: "dev@example.com",
       deviceName: "Test device",
       loggedInAt: "2026-08-12T00:00:00.000Z",

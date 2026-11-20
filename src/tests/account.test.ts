@@ -21,6 +21,8 @@ test("status reports stored credentials and logout revokes the token", async () 
     await saveCredentials({
       apiUrl: "https://example.com",
       token,
+      clientShare: "Y2xpZW50",
+      wrapKey: "d3JhcA==",
       email: "dev@example.com",
       deviceName: "Test device",
       loggedInAt: "2026-08-12T00:00:00.000Z",

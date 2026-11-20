@@ -39,6 +39,7 @@ export type ProjectDetail = {
   role: ProjectRole;
   canManage: boolean;
   envFiles: EnvFileSummary[];
+  environmentKeys: { environment: string }[];
 };
 
 export type WorkspaceMember = {

@@ -11,8 +11,11 @@ import { CLI_VALUE_FLAGS } from "../constants/index.js";
 import { parseArgs } from "../lib/args.js";
 import { saveCredentials } from "../lib/credentials.js";
 import type { CliFetch } from "../types/api.js";
+import { verifyEnvironmentShareForTest } from "./share-verify.js";
+import { createFakeAccount } from "./fake-account.js";
 
 const token = `eit_${"m".repeat(43)}`;
+const account = await createFakeAccount(token);
 const workspace = {
   id: "ws-1",
   name: "Acme",
@@ -37,6 +40,7 @@ function createFakeApi() {
     requests.push({ method, path: url.pathname + url.search, body });
     assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${token}`);
 
+    if (url.pathname === "/api/cli/v1/auth/keys") return json(account.keysResponse);
     if (url.pathname === "/api/workspaces" && method === "GET") return json({ workspaces: [{ id: "ws-1", name: "Acme" }] });
     if (url.pathname === "/api/workspaces" && method === "POST") return json({ workspaceId: "ws-new" }, 201);
     if (url.pathname === "/api/workspaces/ws-1") return json({ workspace });
@@ -72,6 +76,7 @@ async function withLogin(fn: () => Promise<void>) {
     await saveCredentials({
       apiUrl: "https://example.com",
       token,
+      ...account.credentialShares,
       email: "dev@example.com",
       deviceName: "test",
       loggedInAt: new Date().toISOString(),
@@ -104,7 +109,16 @@ test("project create sends uppercase environments", async () => {
       fetchImplementation: api.fetchImplementation,
     });
     const create = api.requests.find((request) => request.method === "POST");
-    assert.deepEqual(create?.body, { name: "web", environments: ["PRODUCTION"] });
+    const body = create?.body as {
+      name: string;
+      environments: string[];
+      environmentKeys: { id: string; environment: string; sealedSecret: string; signature: string }[];
+    };
+    assert.equal(body.name, "web");
+    assert.deepEqual(body.environments, ["PRODUCTION"]);
+    assert.equal(body.environmentKeys.length, 1);
+    assert.equal(body.environmentKeys[0]?.environment, "PRODUCTION");
+    assert.ok(await verifyEnvironmentShareForTest(body.environmentKeys[0]!, account), "key is sealed and signed for the account");
   });
 });
 

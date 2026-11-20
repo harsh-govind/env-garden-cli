@@ -1,4 +1,6 @@
+import { unlockAccount } from "../lib/account-keys.js";
 import { verifySession } from "../lib/api.js";
+import { computeFingerprint } from "../lib/crypto/keyring.js";
 import { readCredentials } from "../lib/credentials.js";
 import { formatDateTime } from "../lib/format.js";
 import { findProjectLink } from "../lib/project-config.js";
@@ -16,6 +18,7 @@ export async function status(options: StatusOptions = {}): Promise<void> {
 
   const { credentials, credentialsPath, modifiedAt } = storedCredentials;
   let sessionState = "Active";
+  let fingerprint = "Unknown";
   let expiresAt = credentials.expiresAt ?? null;
 
   try {
@@ -27,6 +30,16 @@ export async function status(options: StatusOptions = {}): Promise<void> {
         : {}),
     });
     expiresAt = session.expiresAt ?? expiresAt;
+
+    try {
+      const account = await unlockAccount(
+        credentials,
+        options.fetchImplementation ? { fetchImplementation: options.fetchImplementation } : {}
+      );
+      fingerprint = await computeFingerprint(account.publicKeys);
+    } catch (keyError) {
+      fingerprint = keyError instanceof Error ? keyError.message : "Unavailable";
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     sessionState = /expired|revoked|invalid/i.test(message)
@@ -37,6 +50,7 @@ export async function status(options: StatusOptions = {}): Promise<void> {
   console.log(`Status: Logged in`);
   console.log(`Email: ${credentials.email || "Unknown (log in again to refresh)"}`);
   console.log(`Session: ${sessionState}`);
+  console.log(`Key fingerprint: ${fingerprint}`);
   console.log(`Expires: ${expiresAt ? formatDateTime(expiresAt) : "Unknown"}`);
   console.log(`API URL: ${credentials.apiUrl}`);
   console.log(`Device: ${credentials.deviceName || "Unknown"}`);

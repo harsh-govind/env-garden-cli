@@ -1,4 +1,7 @@
+import { DEFAULT_PROJECT_ENVIRONMENTS } from "../constants/crypto.js";
+import { unlockAccount } from "./account-keys.js";
 import { apiRequest } from "./api.js";
+import { createEnvironmentKeysForSelf } from "./environment-keys.js";
 import type { CliFetch } from "../types/api.js";
 import type { StoredCliCredentials } from "../types/credentials.js";
 import type {
@@ -26,6 +29,9 @@ export function createWorkspaceApi(credentials: StoredCliCredentials, fetchImple
       ...(fetchImplementation ? { fetchImplementation } : {}),
     });
   const id = encodeURIComponent;
+  const unlock = () => unlockAccount(credentials, fetchImplementation ? { fetchImplementation } : {});
+  const getProject = async (workspaceId: string, projectId: string) =>
+    (await request<ProjectResponse>(`/${id(workspaceId)}/projects/${id(projectId)}`)).project;
 
   return {
     listWorkspaces: async () => (await request<WorkspacesResponse>("")).workspaces,
@@ -36,25 +42,45 @@ export function createWorkspaceApi(credentials: StoredCliCredentials, fetchImple
     renameWorkspace: (workspaceId: string, name: string) => request(`/${id(workspaceId)}`, "PATCH", { name }),
     deleteWorkspace: (workspaceId: string) => request(`/${id(workspaceId)}`, "DELETE"),
 
-    getProject: async (workspaceId: string, projectId: string) =>
-      (await request<ProjectResponse>(`/${id(workspaceId)}/projects/${id(projectId)}`)).project,
-    createProject: async (workspaceId: string, name: string, environments?: string[], description?: string) =>
-      (await request<CreatedProjectResponse>(`/${id(workspaceId)}/projects`, "POST", {
+    getProject,
+    createProject: async (workspaceId: string, name: string, environments?: string[], description?: string) => {
+      const selectedEnvironments = environments?.length ? environments : [...DEFAULT_PROJECT_ENVIRONMENTS];
+      const environmentKeys = await createEnvironmentKeysForSelf(await unlock(), selectedEnvironments);
+
+      return (await request<CreatedProjectResponse>(`/${id(workspaceId)}/projects`, "POST", {
         name,
-        ...(environments ? { environments } : {}),
+        environments: selectedEnvironments,
+        environmentKeys,
         ...(description ? { description } : {}),
-      })).project,
+      })).project;
+    },
     renameProject: (workspaceId: string, projectId: string, name: string) =>
       request(`/${id(workspaceId)}/projects/${id(projectId)}`, "PATCH", { name }),
     deleteProject: (workspaceId: string, projectId: string) =>
       request(`/${id(workspaceId)}/projects/${id(projectId)}`, "DELETE"),
 
-    createEnvFile: async (workspaceId: string, projectId: string, name: string, environment: string, description?: string) =>
-      (await request<EnvFileResponse>(`/${id(workspaceId)}/projects/${id(projectId)}/env-files`, "POST", {
+    createEnvFile: async (workspaceId: string, projectId: string, name: string, environment: string, description?: string) => {
+      const project = await getProject(workspaceId, projectId);
+      const needsKey = !project.environmentKeys.some((key) => key.environment === environment);
+      const [environmentKey] = needsKey
+        ? await createEnvironmentKeysForSelf(await unlock(), [environment])
+        : [];
+
+      return (await request<EnvFileResponse>(`/${id(workspaceId)}/projects/${id(projectId)}/env-files`, "POST", {
         name,
         environment,
+        ...(environmentKey
+          ? {
+            environmentKey: {
+              id: environmentKey.id,
+              sealedSecret: environmentKey.sealedSecret,
+              signature: environmentKey.signature,
+            },
+          }
+          : {}),
         ...(description ? { description } : {}),
-      })).envFile,
+      })).envFile;
+    },
     renameEnvFile: (workspaceId: string, projectId: string, envFileId: string, name: string) =>
       request(`/${id(workspaceId)}/projects/${id(projectId)}/env-files/${id(envFileId)}`, "PATCH", { name }),
     deleteEnvFile: (workspaceId: string, projectId: string, envFileId: string) =>

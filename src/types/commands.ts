@@ -1,4 +1,5 @@
-import type { CliFetch, RemoteVariable } from "./api.js";
+import type { CliFetch } from "./api.js";
+import type { EncryptedVariable } from "./crypto.js";
 
 export type LogoutOptions = {
   localOnly?: boolean;
@@ -47,5 +48,11 @@ export type VariableDiff = {
 };
 
 export type PushPayload = {
-  variables: RemoteVariable[];
+  variables: EncryptedVariable[];
+};
+
+export type KeysCommandOptions = {
+  action: string | undefined;
+  subject?: string;
+  fetchImplementation?: CliFetch;
 };

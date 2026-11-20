@@ -1,15 +1,23 @@
 import { apiRequest } from "./api.js";
+import { unlockAccount } from "./account-keys.js";
+import { wipeEnvironmentKey } from "./crypto/environment.js";
+import {
+  decryptRemoteVariables,
+  encryptForPush,
+  openRemoteEnvironmentKey,
+} from "./environment-keys.js";
 import type {
   PushVariablesResponse,
   RemoteEnvFile,
   RemoteOptions,
+  RemoteState,
   RemoteVariable,
   RemoteWorkspace,
-  VariablesResponse,
   WorkspacesResponse,
 } from "../types/api.js";
 import type { StoredCliCredentials } from "../types/credentials.js";
 import type { PushPayload } from "../types/commands.js";
+import type { CipherVariablesResponse } from "../types/keys.js";
 import type { NamedEntity, ProjectLink } from "../types/project.js";
 
 function withFetch(options: RemoteOptions) {
@@ -48,32 +56,74 @@ export async function fetchWorkspaces(
   return payload.workspaces;
 }
 
-export async function fetchVariables(
+export async function fetchRemoteState(
   credentials: StoredCliCredentials,
   link: Pick<ProjectLink, "workspaceId" | "projectId" | "envFileId">,
   options: RemoteOptions = {}
-): Promise<RemoteVariable[]> {
-  const payload = await apiRequest<VariablesResponse>({
+): Promise<RemoteState> {
+  const account = await unlockAccount(credentials, options);
+  const payload = await apiRequest<CipherVariablesResponse>({
     apiUrl: credentials.apiUrl,
     token: credentials.token,
     path: variablesPath(link),
     ...withFetch(options),
   });
 
-  if (!Array.isArray(payload.variables)) {
+  if (!Array.isArray(payload.variables) || !payload.environmentKey) {
     throw new Error("Env Garden returned an invalid variable list.");
   }
 
-  return payload.variables;
+  const material = await openRemoteEnvironmentKey({
+    credentials,
+    account,
+    environmentKey: payload.environmentKey,
+  });
+
+  try {
+    const plainVariables = await decryptRemoteVariables({
+      variables: payload.variables,
+      envFileId: link.envFileId,
+      material,
+    });
+
+    return {
+      variables: plainVariables,
+      entries: plainVariables.map((plain, index) => ({ plain, cipher: payload.variables![index]! })),
+      keyVersion: payload.environmentKey.version,
+      material,
+    };
+  } catch (error) {
+    await wipeEnvironmentKey(material);
+    throw error;
+  }
+}
+
+export async function fetchVariables(
+  credentials: StoredCliCredentials,
+  link: Pick<ProjectLink, "workspaceId" | "projectId" | "envFileId">,
+  options: RemoteOptions = {}
+): Promise<RemoteVariable[]> {
+  const state = await fetchRemoteState(credentials, link, options);
+  await wipeEnvironmentKey(state.material);
+  return state.variables;
 }
 
 export async function pushVariables(
   credentials: StoredCliCredentials,
   link: Pick<ProjectLink, "workspaceId" | "projectId" | "envFileId">,
   variables: RemoteVariable[],
+  state: RemoteState,
   options: RemoteOptions = {}
 ): Promise<number> {
-  const body: PushPayload = { variables };
+  const body: PushPayload = {
+    variables: await encryptForPush({
+      local: variables,
+      remote: state.entries,
+      envFileId: link.envFileId,
+      keyVersion: state.keyVersion,
+      material: state.material,
+    }),
+  };
   const payload = await apiRequest<PushVariablesResponse>({
     apiUrl: credentials.apiUrl,
     token: credentials.token,

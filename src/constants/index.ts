@@ -1,4 +1,4 @@
-export const CLI_VERSION = "0.3.0";
+export const CLI_VERSION = "0.4.0";
 export const CLI_USER_AGENT = `@env-garden/cli/${CLI_VERSION}`;
 export const DEFAULT_API_URL = "https://env.garden";
 export const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
@@ -71,5 +71,6 @@ export const MANAGE_COMMANDS = [
   "members",
   "invite",
   "history",
+  "keys",
 ] as const;
 export const MANAGE_FLAGS = ["--workspace", "--project", "--description", "--yes", "-y"] as const;

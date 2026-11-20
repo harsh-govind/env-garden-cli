@@ -1,13 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { DEFAULT_ENV_FILENAME } from "../constants/index.js";
+import { wipeEnvironmentKey } from "../lib/crypto/environment.js";
 import { parseEnvText } from "../lib/env-file.js";
 import { pluralize } from "../lib/format.js";
 import { confirm, isInteractive } from "../lib/prompt.js";
 import { requireProjectLink } from "../lib/project-config.js";
-import { fetchVariables, pushVariables, resolveTargetEnvFile } from "../lib/remote.js";
+import { fetchRemoteState, pushVariables, resolveTargetEnvFile } from "../lib/remote.js";
 import { requireCredentials } from "../lib/session.js";
-import type { RemoteVariable } from "../types/api.js";
+import type { RemoteState, RemoteVariable } from "../types/api.js";
 import type { PushOptions, VariableDiff } from "../types/commands.js";
+import type { StoredCliCredentials } from "../types/credentials.js";
+import type { ProjectLink } from "../types/project.js";
 
 export function diffVariables(local: RemoteVariable[], remote: RemoteVariable[]): VariableDiff {
   const remoteByKey = new Map(remote.map((variable) => [variable.key, variable]));
@@ -32,10 +35,7 @@ export function diffVariables(local: RemoteVariable[], remote: RemoteVariable[])
   return diff;
 }
 
-export async function push(options: PushOptions = {}): Promise<void> {
-  const credentials = await requireCredentials();
-  const { link } = await requireProjectLink();
-  const filePath = options.file ?? DEFAULT_ENV_FILENAME;
+async function readLocalVariables(filePath: string): Promise<RemoteVariable[]> {
   let text: string;
 
   try {
@@ -64,17 +64,26 @@ export async function push(options: PushOptions = {}): Promise<void> {
     seen.add(variable.key);
   }
 
-  const remoteOptions = options.fetchImplementation
-    ? { fetchImplementation: options.fetchImplementation }
-    : {};
-  const target = await resolveTargetEnvFile(credentials, link, options.env, remoteOptions);
-  const remote = await fetchVariables(credentials, target, remoteOptions);
+  return local;
+}
+
+async function pushToRemote(input: {
+  credentials: StoredCliCredentials;
+  target: ProjectLink;
+  filePath: string;
+  local: RemoteVariable[];
+  state: RemoteState;
+  options: PushOptions;
+}): Promise<void> {
+  const { credentials, target, filePath, local, state, options } = input;
+  const remote = state.variables;
   const diff = diffVariables(local, remote);
+  const hasValueChanges = diff.added.length + diff.removed.length + diff.changed.length > 0;
   const orderChanged =
-    diff.added.length + diff.removed.length + diff.changed.length === 0
+    !hasValueChanges
     && local.map((variable) => variable.key).join("\n") !== remote.map((variable) => variable.key).join("\n");
 
-  if (diff.added.length + diff.removed.length + diff.changed.length === 0 && !orderChanged) {
+  if (!hasValueChanges && !orderChanged) {
     console.log(`${target.envFileName} is already up to date.`);
     return;
   }
@@ -99,6 +108,27 @@ export async function push(options: PushOptions = {}): Promise<void> {
     }
   }
 
-  const count = await pushVariables(credentials, target, local, remoteOptions);
+  const remoteOptions = options.fetchImplementation
+    ? { fetchImplementation: options.fetchImplementation }
+    : {};
+  const count = await pushVariables(credentials, target, local, state, remoteOptions);
   console.log(`Pushed ${pluralize(count, "variable")} to ${target.envFileName}.`);
+}
+
+export async function push(options: PushOptions = {}): Promise<void> {
+  const credentials = await requireCredentials();
+  const { link } = await requireProjectLink();
+  const filePath = options.file ?? DEFAULT_ENV_FILENAME;
+  const local = await readLocalVariables(filePath);
+  const remoteOptions = options.fetchImplementation
+    ? { fetchImplementation: options.fetchImplementation }
+    : {};
+  const target = await resolveTargetEnvFile(credentials, link, options.env, remoteOptions);
+  const state = await fetchRemoteState(credentials, target, remoteOptions);
+
+  try {
+    await pushToRemote({ credentials, target, filePath, local, state, options });
+  } finally {
+    await wipeEnvironmentKey(state.material);
+  }
 }

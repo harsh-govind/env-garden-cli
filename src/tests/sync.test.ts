@@ -9,6 +9,9 @@ import { push } from "../commands/push.js";
 import { run } from "../commands/run.js";
 import { saveCredentials } from "../lib/credentials.js";
 import type { CliFetch, RemoteVariable } from "../types/api.js";
+import type { EncryptedVariable } from "../types/crypto.js";
+import type { RemoteCipherVariable } from "../types/keys.js";
+import { createFakeAccount, createFakeEnvironment, decryptAll, encryptAll } from "./fake-account.js";
 
 const token = `eit_${"s".repeat(43)}`;
 const variablesUrl =
@@ -21,12 +24,22 @@ function json(body: unknown, status = 200) {
   });
 }
 
-/** In-memory fake of the Env Garden CLI API. */
-function createFakeServer(initial: RemoteVariable[]) {
-  const state = { variables: initial, puts: 0 };
+const account = await createFakeAccount(token);
+
+async function createFakeServer(initial: RemoteVariable[]) {
+  const environment = await createFakeEnvironment(account, "PRODUCTION");
+  const state = {
+    variables: await encryptAll(initial, "e-1", environment.material),
+    puts: 0,
+    lastPut: [] as EncryptedVariable[],
+  };
   const fetchImplementation: CliFetch = async (input, init) => {
     const url = String(input);
     assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${token}`);
+
+    if (url === "https://example.com/api/cli/v1/auth/keys") {
+      return json(account.keysResponse);
+    }
 
     if (url === "https://example.com/api/cli/v1/projects") {
       return json({
@@ -50,19 +63,28 @@ function createFakeServer(initial: RemoteVariable[]) {
     }
 
     if (url === variablesUrl && (init?.method ?? "GET") === "GET") {
-      return json({ variables: state.variables });
+      return json({ variables: state.variables, environmentKey: environment.environmentKey });
     }
 
     if (url === variablesUrl && init?.method === "PUT") {
       state.puts += 1;
-      state.variables = (JSON.parse(String(init.body)) as { variables: RemoteVariable[] }).variables;
+      state.lastPut = (JSON.parse(String(init.body)) as { variables: EncryptedVariable[] }).variables;
+      state.variables = state.lastPut.map((variable, position): RemoteCipherVariable => ({
+        id: `v-put-${state.puts}-${position}`,
+        position,
+        ...variable,
+      }));
       return json({ count: state.variables.length });
     }
 
     return json({ error: "not found" }, 404);
   };
 
-  return { state, fetchImplementation };
+  return {
+    state,
+    fetchImplementation,
+    plainVariables: () => decryptAll(state.variables, "e-1", environment.material),
+  };
 }
 
 async function withTempWorkspace(fn: (directory: string) => Promise<void>) {
@@ -91,6 +113,7 @@ async function login(expiresAt = new Date(Date.now() + 86_400_000).toISOString()
   await saveCredentials({
     apiUrl: "https://example.com",
     token,
+    ...account.credentialShares,
     email: "dev@example.com",
     deviceName: "Test device",
     loggedInAt: new Date().toISOString(),
@@ -101,7 +124,7 @@ async function login(expiresAt = new Date(Date.now() + 86_400_000).toISOString()
 test("link, pull, push and run work end to end against the API", async () => {
   await withTempWorkspace(async (directory) => {
     await login();
-    const server = createFakeServer([
+    const server = await createFakeServer([
       { key: "DATABASE_URL", value: "postgres://db", note: "Primary database", isCommented: false },
       { key: "OLD_FLAG", value: "on", note: null, isCommented: true },
     ]);
@@ -118,11 +141,18 @@ test("link, pull, push and run work end to end against the API", async () => {
     assert.equal((await stat(join(directory, ".env"))).mode & 0o777, 0o600);
 
     await writeFile(join(directory, ".env"), `${pulled}NEW_KEY=hello\n`);
+    const before = server.state.variables.map((variable) => variable.encryptedValue);
     await push({ yes: true, fetchImplementation });
     assert.equal(server.state.puts, 1);
     assert.deepEqual(
-      server.state.variables.map((variable) => [variable.key, variable.isCommented]),
+      (await server.plainVariables()).map((variable) => [variable.key, variable.isCommented]),
       [["DATABASE_URL", false], ["OLD_FLAG", true], ["NEW_KEY", false]]
+    );
+    assert.equal(JSON.stringify(server.state.lastPut).includes("postgres://db"), false, "push sends ciphertext only");
+    assert.deepEqual(
+      server.state.lastPut.slice(0, 2).map((variable) => variable.encryptedValue),
+      before,
+      "unchanged variables keep their ciphertext"
     );
 
     await push({ yes: true, fetchImplementation });

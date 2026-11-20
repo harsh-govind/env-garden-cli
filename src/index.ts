@@ -11,6 +11,7 @@ import { run as runCommand } from "./commands/run.js";
 import { status } from "./commands/status.js";
 import { envFileCommand } from "./commands/env-file.js";
 import { historyCommand } from "./commands/history.js";
+import { keysCommand } from "./commands/keys.js";
 import { inviteCommand, memberCommand } from "./commands/member.js";
 import { projectCommand } from "./commands/project.js";
 import { workspaceCommand } from "./commands/workspace.js";
@@ -28,6 +29,8 @@ Account:
   eit login [--api-url <url>] [--no-browser]   Sign in (session lasts 7 days)
   eit logout [--local]                         Sign out and revoke this device
   eit status                                   Show account, session and link
+  eit keys [fingerprint]                       Show this account's key fingerprint
+  eit keys trust <email>                       Accept a teammate's new key after they reset it
 
 Env files in this folder:
   eit link [--workspace] [--project] [--env]   Link this folder to an env file
@@ -209,6 +212,13 @@ export async function run(args: string[]) {
         assertKnownFlags(parsed, ["--workspace", "--search", "--limit"]);
         await historyCommand(manage);
         return;
+
+      case "keys": {
+        assertKnownFlags(parsed, []);
+        const [action, subject] = parsed.positionals;
+        await keysCommand({ action, ...(subject ? { subject } : {}) });
+        return;
+      }
 
       default:
         throw new Error(`Unknown command: ${parsed.command}. Run eit --help.`);

@@ -11,6 +11,13 @@ import {
   TOKEN_PATTERN,
 } from "../constants/index.js";
 import { isRecord, parseResponse, verifySession, verifyToken } from "../lib/api.js";
+import {
+  computeVerificationCode,
+  generateTransportKeyPair,
+  openCliPackage,
+} from "../lib/crypto/cli.js";
+import { toBase64 } from "../lib/crypto/encoding.js";
+import { loadSodium } from "../lib/crypto/sodium.js";
 import { formatDateTime } from "../lib/format.js";
 import {
   getConfigDirectory,
@@ -60,6 +67,7 @@ async function requestAuthorization({
   tokenHash,
   tokenPrefix,
   tokenName,
+  transportPublicKey,
   fetchImplementation = fetch,
 }: RequestAuthorizationInput): Promise<CliLoginRequest> {
   let response;
@@ -72,7 +80,7 @@ async function requestAuthorization({
         "Content-Type": "application/json",
         "User-Agent": CLI_USER_AGENT,
       },
-      body: JSON.stringify({ tokenHash, tokenPrefix, tokenName }),
+      body: JSON.stringify({ tokenHash, tokenPrefix, tokenName, transportPublicKey }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
@@ -147,18 +155,23 @@ async function readAuthorizationStatus({
 
   const payload = await parseResponse(response);
 
-  if (
-    !isRecord(payload)
-    || (
-      payload.status !== "PENDING"
-      && payload.status !== "APPROVED"
-      && payload.status !== "EXPIRED"
-    )
-  ) {
+  if (!isRecord(payload)) {
     throw new Error("Env Garden returned an invalid login status.");
   }
 
-  return payload.status;
+  if (payload.status === "APPROVED") {
+    if (typeof payload.sealedPackage !== "string") {
+      throw new Error("Env Garden approved the login without a key package. Update Env Garden and try again.");
+    }
+
+    return { status: "APPROVED", sealedPackage: payload.sealedPackage };
+  }
+
+  if (payload.status === "PENDING" || payload.status === "EXPIRED") {
+    return { status: payload.status };
+  }
+
+  throw new Error("Env Garden returned an invalid login status.");
 }
 
 async function openBrowser(url: string): Promise<boolean> {
@@ -196,18 +209,23 @@ export async function login(options: LoginOptions = {}): Promise<void> {
   );
   const tokenName = getTokenName();
   const localToken = createLocalToken();
+  const transport = await generateTransportKeyPair();
   const fetchImplementation = options.fetchImplementation || fetch;
   const loginRequest = await requestAuthorization({
     apiUrl,
     tokenHash: localToken.tokenHash,
     tokenPrefix: localToken.tokenPrefix,
     tokenName,
+    transportPublicKey: transport.publicKey,
     fetchImplementation,
   });
   const openBrowserImplementation = options.openBrowserImplementation || openBrowser;
   const sleepImplementation = options.sleepImplementation || sleep;
+  const verificationCode = await computeVerificationCode(transport.publicKey);
 
   console.log(`Open this URL to authorize eit:\n${loginRequest.authorizationUrl}\n`);
+  console.log(`Verification code: ${verificationCode}`);
+  console.log("Only approve in the browser if it shows the same code.\n");
 
   if (options.openBrowser !== false) {
     const didOpenBrowser = await openBrowserImplementation(
@@ -239,18 +257,25 @@ export async function login(options: LoginOptions = {}): Promise<void> {
   ) * 1000;
 
   while (Date.now() < expiresAt) {
-    const status = await readAuthorizationStatus({
+    const loginStatus = await readAuthorizationStatus({
       apiUrl,
       requestId: loginRequest.requestId,
       pollSecret: loginRequest.pollSecret,
       fetchImplementation,
     });
 
-    if (status === "APPROVED") {
+    if (loginStatus.status === "APPROVED") {
       if (!TOKEN_PATTERN.test(localToken.token)) {
         throw new Error("Failed to generate a valid CLI token.");
       }
 
+      const sodium = await loadSodium();
+      const material = await openCliPackage({
+        sealedPackage: loginStatus.sealedPackage,
+        transportPublicKey: transport.publicKey,
+        transportSecretKey: transport.secretKey,
+      });
+      sodium.memzero(transport.secretKey);
       const { user, expiresAt } = await verifySession({
         apiUrl,
         token: localToken.token,
@@ -259,6 +284,8 @@ export async function login(options: LoginOptions = {}): Promise<void> {
       await saveCredentials({
         apiUrl,
         token: localToken.token,
+        clientShare: toBase64(sodium, material.clientShare),
+        wrapKey: toBase64(sodium, material.wrapKey),
         email: user.email,
         deviceName: tokenName,
         loggedInAt: new Date().toISOString(),
@@ -271,7 +298,7 @@ export async function login(options: LoginOptions = {}): Promise<void> {
       return;
     }
 
-    if (status === "EXPIRED") {
+    if (loginStatus.status === "EXPIRED") {
       break;
     }
 

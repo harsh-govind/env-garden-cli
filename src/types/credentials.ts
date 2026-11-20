@@ -1,6 +1,8 @@
 export type CliCredentials = {
   apiUrl: string;
   token: string;
+  clientShare: string;
+  wrapKey: string;
   email: string;
   deviceName: string;
   loggedInAt: string;
@@ -8,7 +10,7 @@ export type CliCredentials = {
 };
 
 export type StoredCliCredentials = Pick<CliCredentials, "apiUrl" | "token"> &
-  Partial<Pick<CliCredentials, "email" | "deviceName" | "loggedInAt" | "expiresAt">>;
+  Partial<Pick<CliCredentials, "clientShare" | "wrapKey" | "email" | "deviceName" | "loggedInAt" | "expiresAt">>;
 
 export type ReadCredentialsResult = {
   credentials: StoredCliCredentials;

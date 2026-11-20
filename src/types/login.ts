@@ -13,12 +13,13 @@ export type RequestAuthorizationInput = {
   tokenHash: string;
   tokenPrefix: string;
   tokenName: string;
+  transportPublicKey: string;
   fetchImplementation?: CliFetch;
 };
 
 export type CreateCliLoginRequestPayload = Pick<
   RequestAuthorizationInput,
-  "tokenHash" | "tokenPrefix" | "tokenName"
+  "tokenHash" | "tokenPrefix" | "tokenName" | "transportPublicKey"
 >;
 
 export type ReadAuthorizationStatusInput = {
@@ -42,4 +43,6 @@ export type CliLoginRequest = {
   intervalSeconds: number;
 };
 
-export type CliLoginStatus = "PENDING" | "APPROVED" | "EXPIRED";
+export type CliLoginStatus =
+  | { status: "PENDING" | "EXPIRED" }
+  | { status: "APPROVED"; sealedPackage: string };

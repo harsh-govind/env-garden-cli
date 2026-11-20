@@ -93,6 +93,8 @@ export async function readCredentials(): Promise<ReadCredentialsResult | null> {
     const credentials: StoredCliCredentials = {
       apiUrl: payload.apiUrl,
       token: payload.token,
+      ...(typeof payload.clientShare === "string" ? { clientShare: payload.clientShare } : {}),
+      ...(typeof payload.wrapKey === "string" ? { wrapKey: payload.wrapKey } : {}),
       ...(typeof payload.email === "string" ? { email: payload.email } : {}),
       ...(typeof payload.deviceName === "string"
         ? { deviceName: payload.deviceName }
